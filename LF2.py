@@ -72,7 +72,7 @@ def lambda_handler(event, context):
     data = es.search(index="restaurants", doc_type="restaurants", body ={"query": {"match": {"Cuisine":str(cuisine['stringValue'])}}})
 
     count = int(data['hits']['total']['value'])
-    randNos = random.sample(range(1, count), 5)
+    randNos = random.sample(range(1, 6), 5)
     print(count,randNos,"=====")
 
     temp = []
