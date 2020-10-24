@@ -3,6 +3,7 @@ import os
 import time
 import boto3
 import math
+import re
 
 
 
@@ -45,13 +46,8 @@ def build_validation_result(is_valid, violated_slot, message_content):
     }
 
 def validate_dining(location, cuisine, dining_time, num_people, phone):
-    locations = ['new york', 'manhattan']
-    if location is not None and location.lower() not in locations:
-        return build_validation_result(False,
-                                       'location',
-                                       'Sorry! We do not serve recommendations for this location right now!')
 
-    cuisines = ['indian', 'mexican','chinese', 'italian', ]
+    cuisines = ['indian', 'mexican','chinese', 'italian', 'thai']
     if cuisine is not None and cuisine.lower() not in cuisines:
         return build_validation_result(False,
                                        'cuisine',
@@ -70,7 +66,12 @@ def validate_dining(location, cuisine, dining_time, num_people, phone):
         minute = parse_int(minute)
         if math.isnan(hour) or math.isnan(minute):
             # Not a valid time; use a prompt defined on the build-time model.
-            return build_validation_result(False, 'dining_time', 'Not a valid time')
+            return build_validation_result(False, 'dining_time', 'Sorry, its and invalid time entered')
+
+    if phone:
+        regex= "\w{10}"
+        if not re.search(regex, phone):
+            return build_validation_result(False, 'phonenumber', 'Sorry, your phone number provided seems incorrect')
 
     return build_validation_result(True, None, None)
 
@@ -100,7 +101,6 @@ def Dining_Suggestions(intent_request):
 
         location = get_slots(intent_request)['location']
         cuisine = get_slots(intent_request)['cuisine']
-        #dining_date =  try_ex(lambda: intent_request['currentIntent']['slots']['DiningDate'])
         dining_time = get_slots(intent_request)['diningtime']
         num_people = get_slots(intent_request)['numberofpeople']
         phone = get_slots(intent_request)['phonenumber']
@@ -118,7 +118,7 @@ def Dining_Suggestions(intent_request):
 
     except:
         return
-    #
+
     if intent_request['invocationSource'] == 'DialogCodeHook':
         # Validate any slots which have been specified.  If any are invalid, re-elicit for their value
         slots = get_slots(intent_request)
@@ -143,11 +143,11 @@ def Dining_Suggestions(intent_request):
     # Create SQS client
     sqs = boto3.client('sqs')
     # Get URL for SQS queue
-    #response = sqs.get_queue_url(QueueName='DiningRequest')
-    #queue_url = response['QueueUrl']
+
     queue_url = "https://sqs.us-east-1.amazonaws.com/772764957281/sqs"
     print(queue_url)
     print(location, cuisine, dining_time, num_people, phone)
+
     # Send message to SQS queue
     # supported 'DataType': string, number, binary
     response = sqs.send_message(
@@ -217,9 +217,8 @@ def dispatch(intent_request):
     """
     Called when the user specifies an intent for this bot.
     """
-    #logger.debug('dispatch userId={}, intentName={}'.format(intent_request['userId'], intent_request['currentIntent']['name']))
+
     intent_name = intent_request['currentIntent']['name']
-    #intent_name = "DiningSuggestionsIntent"
 
     # Dispatch to your bot's intent handlers
     if intent_name == 'GreetingIntent':
@@ -231,12 +230,6 @@ def dispatch(intent_request):
     raise Exception('Intent with name ' + intent_name + ' not supported')
 
 def lambda_handler(event, context):
-    # TODO implement
-    #return {
-    #   'statusCode': 200,
-    #  'body': json.dumps('Hello from Lambda!')
-    #}
     os.environ['TZ'] = 'America/New_York'
     time.tzset()
-    #logger.debug('event.chatbot.name={}'.format(event['chatbot']['name']))
     return dispatch(event)
